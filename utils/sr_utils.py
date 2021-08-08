@@ -1,4 +1,29 @@
 from .common_utils import *
+from skimage.metrics import peak_signal_noise_ratio
+import cv2
+
+def rgb2ycbcr(im_rgb):
+    im_rgb = im_rgb.astype(np.float32)
+    im_ycrcb = cv2.cvtColor(im_rgb, cv2.COLOR_RGB2YCR_CB)
+    im_ycbcr = im_ycrcb[:,:,(0,2,1)].astype(np.float32)
+    im_ycbcr[:,:,0] = (im_ycbcr[:,:,0]*(235-16)+16)/255.0 #to [16/255, 235/255]
+    im_ycbcr[:,:,1:] = (im_ycbcr[:,:,1:]*(240-16)+16)/255.0 #to [16/255, 240/255]
+    return im_ycbcr
+
+def compare_psnr_y(x, y):
+    if x.shape[0] == 1:
+         return peak_signal_noise_ratio(x, y)
+    return peak_signal_noise_ratio(rgb2ycbcr(x.transpose(1,2,0))[:,:,0], rgb2ycbcr(y.transpose(1,2,0))[:,:,0])
+    
+def compare_PSNR(out, GT):
+    q1 = out[:3].sum(0)
+    t1 = np.where(q1.sum(0) > 0)[0]
+    t2 = np.where(q1.sum(1) > 0)[0]
+
+    psnr = compare_psnr_y(out[:3,t2[0] + 4:t2[-1]-4,t1[0] + 4:t1[-1] - 4], 
+                           GT[:3,t2[0] + 4:t2[-1]-4,t1[0] + 4:t1[-1] - 4])
+    return psnr
+
 
 def put_in_center(img_np, target_size):
     img_out = np.zeros([3, target_size[0], target_size[1]])
